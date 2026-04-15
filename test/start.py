@@ -22,7 +22,7 @@ from helpers.dataset import (
     load_input_dataframe,
     load_reference_texts,
     make_run_output_dir,
-    resolve_label_file,
+    resolve_label_path,
 )
 from helpers.loader import load_model
 from helpers.translator import translate_full_dataframe
@@ -57,7 +57,7 @@ def run_tests() -> None:
     results: list[dict] = []
 
     for input_file in input_files:
-        label_file = resolve_label_file(input_file, LABEL_DIR)
+        label_file = resolve_label_path(input_file, LABEL_DIR)
         df = load_input_dataframe(input_file, text_column=TEXT_COLUMN)
 
         print_file_header(
@@ -88,7 +88,7 @@ def run_tests() -> None:
         bleu_score = None
         if label_file is not None:
             try:
-                references = load_reference_texts(label_file, ref_column=REF_COLUMN)
+                references = load_reference_texts(label_file)
                 hypotheses = translated_df["russian_text"].fillna("").astype(str).tolist()
 
                 if not references:

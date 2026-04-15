@@ -7,6 +7,7 @@ from config.model import BATCH_SIZE, CHINESE_CODES, ENGLISH_CODE, GENERATE_PARAM
 from helpers.batching import flush_gpu_cache, group_by_code, iter_batches
 from helpers.preprocessing import (
     auto_select_chinese_code,
+    clean_english_pivot,
     detect_row_lang,
     normalize_en_punct,
     normalize_zh_punct,
@@ -180,6 +181,7 @@ def translate_full_dataframe(
                 device=device,
                 generate_params=generate_params,
             )
+            translated = [clean_english_pivot(x) for x in translated]
             for i, en in zip(sub_idx, translated):
                 english_texts[i] = en
 
@@ -187,7 +189,7 @@ def translate_full_dataframe(
 
     all_to_ru = zh_indices + en_indices
     for batch_idx in iter_batches(all_to_ru, batch_size):
-        batch_en = [normalize_en_punct(english_texts[i]) for i in batch_idx]
+        batch_en = [clean_english_pivot(normalize_en_punct(english_texts[i])) for i in batch_idx]
         translated = safe_translate_batch(
             texts=batch_en,
             src_lang=ENGLISH_CODE,
@@ -198,7 +200,7 @@ def translate_full_dataframe(
             generate_params=generate_params,
         )
         for i, ru in zip(batch_idx, translated):
-            russian_texts[i] = ru
+            russian_texts[i] = normalize_en_punct(ru)
 
         flush_gpu_cache()
 

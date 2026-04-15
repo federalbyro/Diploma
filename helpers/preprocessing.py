@@ -9,6 +9,33 @@ _cc_t2s = OpenCC("t2s")  # traditional → simplified
 _cc_s2t = OpenCC("s2t")  # simplified  → traditional
 
 
+DUPLICATE_PHRASE_RE = re.compile(r'\b(.+?)(?:\s*,\s*|\s+)\1\b', re.IGNORECASE)
+MULTISPACE_RE = re.compile(r'\s+')
+DUP_WORD_RE = re.compile(r'\b(\w+)(\s+\1\b)+', re.IGNORECASE)
+
+def clean_english_pivot(text: str) -> str:
+    text = str(text).strip()
+
+    text = MULTISPACE_RE.sub(" ", text)
+
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = re.sub(r"([,.;:!?])([^\s])", r"\1 \2", text)
+
+    text = re.sub(r"([,.;:!?])\1+", r"\1", text)
+
+    text = DUP_WORD_RE.sub(r"\1", text)
+
+    text = re.sub(r"(\d)\s+(mm|cm|m|kg|g|mpa|bar|v|w|kw|hz|l|ml|°c)\b", r"\1\2", text, flags=re.IGNORECASE)
+
+    text = re.sub(r"(\d)\s*[x×]\s*(\d)", r"\1x\2", text, flags=re.IGNORECASE)
+    text = re.sub(r"(\d)\s*[x×]\s*(\d)\s*[x×]\s*(\d)", r"\1x\2x\3", text, flags=re.IGNORECASE)
+
+    text = re.sub(r"\s+([)\]])", r"\1", text)
+    text = re.sub(r"([(\\[])\s+", r"\1", text)
+
+    text = text.strip(" ,;.")
+
+    return text
 
 def normalize_zh_punct(text: str) -> str:
     """

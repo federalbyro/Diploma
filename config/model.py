@@ -15,8 +15,8 @@ MODEL_LOAD_CONFIG = {
 
 
 GENERATE_PARAMS = {
-    "num_beams":              4,      # beam search: больше = качество ↑, скорость ↓
-    "repetition_penalty":     1.1,   # штраф за повторяющиеся токены
+    "num_beams":              6,      # beam search: больше = качество ↑, скорость ↓
+    "repetition_penalty":     1.05,   # штраф за повторяющиеся токены
     "no_repeat_ngram_size":   3,     # запрет повтора 3-грамм
     "length_penalty":         1.0,   # > 1 поощряет длинные переводы
     "max_new_tokens":         256,
