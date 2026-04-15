@@ -11,3 +11,5 @@ unbabel-comet
 langdetect
 bitsandbytes
 tqdm
+setuptools
+wheel
