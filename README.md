@@ -1,10 +1,7 @@
 # NLLB Diplom Project
 ## v1.1
 
-Небольшой проект для тестирования перевода описаний товаров через `facebook/nllb-200-3.3B`.
-
-Сейчас основной сценарий такой:
-
+Сценарий использования:
 - беру `.csv` с входными данными
 - прогоняю через модель
 - получаю перевод
@@ -21,7 +18,7 @@
 
 ## Что сейчас умеет проект
 
-- загружать модель NLLB
+- загружать модель NLLB 
 - обрабатывать `.csv` файлы с текстами
 - переводить в русский язык
 - работать с test data
@@ -35,27 +32,27 @@
 
 ```text
 Diploma/
-├── main.py
-├── benchmarks/
+├── main.py 
+├── benchmarks/ 
 │   └── bench_model.py
-├── config/
-│   ├── model.py
-│   ├── paths.py
-│   └── gridsearch.py
+├── config/ - настройки для проекта и нейронки
+│   ├── model.py - настройки модели
+│   ├── paths.py - пути к файлам
+│   └── gridsearch.py - подбор гиперпараметров
 ├── helpers/
-│   ├── batching.py
-│   ├── preprocessing.py
-│   ├── translator.py
-│   ├── loader.py
-│   └── dataset.py
-├── metrics/
-│   ├── bleu.py
+│   ├── batching.py - подбор размера батчей
+│   ├── preprocessing.py - препроцессинг для .csv
+│   ├── translator.py - основные функции перевода
+│   ├── loader.py - загрузчик
+│   └── dataset.py - выгрузчик
+├── metrics/ - думаю тут понятно
+│   ├── bleu.py 
 │   ├── chrf.py
-│   └── heuristics.py
+│   └── heuristics.py - эвристики
 ├── test/
-│   ├── start.py
+│   ├── start.py - запуск тестирования
 │   └── data/
-│       ├── input/
-│       ├── label/
-│       └── output/
+│       ├── input/ - входящее
+│       ├── label/ - с метками
+│       └── output/ - выходящее
 └── README.md
