@@ -1,17 +1,23 @@
-torch==2.10.0 # ставлю под CUDA 12.8
-transformers==4.40.0
-huggingface_hub==0.23.0
-torchvision==0.25.0 # ставлю под CUDA 12.8
-torchaudio==2.10.0 # ставлю под CUDA 12.8
-sentencepiece
-sacremoses
-accelerate
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+sqlalchemy==2.0.40
+psycopg2-binary==2.9.10
+alembic==1.15.2
+pydantic==2.11.4
+pydantic-settings==2.9.1
+python-multipart==0.0.20
+
+celery==5.5.2
+redis==6.1.0
+
 pandas==2.2.2
-opencc-python-reimplemented
-sacrebleu
-unbabel-comet
-langdetect
-bitsandbytes
-tqdm
-setuptools
-wheel
+openpyxl==3.1.5
+
+qdrant-client==1.14.2
+
+sentence-transformers==4.1.0
+
+pytest==8.3.5
+
+# CPU-only torch
+torch==2.7.0

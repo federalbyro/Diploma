@@ -1,0 +1,106 @@
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile.app
+
+x-app-env: &app-env
+  POSTGRES_DSN: postgresql+psycopg2://postgres:postgres@postgres:5432/diploma
+  QDRANT_URL: http://qdrant:6333
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  MODEL_CACHE_DIR: /models
+  MODEL_DEVICE: cpu
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: diploma
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d diploma"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  qdrant:
+    image: qdrant/qdrant:v1.14.1
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__LOG_LEVEL=warn
+
+  migrations:
+    build: *app-build
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      - postgres
+    restart: "no"
+    environment:
+      <<: *app-env
+    volumes:
+      - model_cache:/models
+      - uploads:/tmp/uploads
+
+  catalog_service:
+    build: *app-build
+    command: ["uvicorn", "catalog.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - migrations
+    environment:
+      <<: *app-env
+    ports:
+      - "8000:8000"
+    volumes:
+      - model_cache:/models
+      - uploads:/tmp/uploads
+
+  catalog_worker:
+    build: *app-build
+    command: ["celery", "-A", "catalog.tasks.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - migrations
+    environment:
+      <<: *app-env
+    volumes:
+      - model_cache:/models
+      - uploads:/tmp/uploads
+
+  client_service:
+    build: *app-build
+    command: ["uvicorn", "client.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    depends_on:
+      - postgres
+      - qdrant
+      - migrations
+    environment:
+      <<: *app-env
+    ports:
+      - "8001:8001"
+    volumes:
+      - model_cache:/models
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  model_cache:
+  uploads:
