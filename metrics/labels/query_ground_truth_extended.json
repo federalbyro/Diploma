@@ -1,50 +1,50 @@
 [
   {
     "query_text": "детские игрушки и игровые наборы для детей",
-    "expected_supplier_names": ["Integration Supplier toys_simplified"]
+    "expected_supplier_ids": [2]
   },
   {
     "query_text": "развивающие игрушки для моторики, логики и обучения ребёнка",
-    "expected_supplier_names": ["Integration Supplier toys_simplified"]
+    "expected_supplier_ids": [2]
   },
   {
     "query_text": "пластиковые игрушки, фигурки, конструкторы и игровые наборы",
-    "expected_supplier_names": ["Integration Supplier toys_simplified"]
+    "expected_supplier_ids": [2]
   },
   {
     "query_text": "мягкие плюшевые игрушки и текстильные детские товары",
-    "expected_supplier_names": ["Integration Supplier toys_simplified"]
+    "expected_supplier_ids": [2]
   },
   {
     "query_text": "авиационные комплектующие и детали для воздушных судов",
-    "expected_supplier_names": ["Integration Supplier aviation_simplified"]
+    "expected_supplier_ids": [1]
   },
   {
     "query_text": "авиационный крепеж, болты, гайки, шайбы и соединительные элементы",
-    "expected_supplier_names": ["Integration Supplier aviation_simplified"]
+    "expected_supplier_ids": [1]
   },
   {
     "query_text": "авиационные трубки, фитинги, штуцеры и элементы трубопроводных систем",
-    "expected_supplier_names": ["Integration Supplier aviation_simplified"]
+    "expected_supplier_ids": [1]
   },
   {
     "query_text": "технические комплектующие и промышленные детали для оборудования",
-    "expected_supplier_names": ["Integration Supplier aviation_simplified"]
+    "expected_supplier_ids": [1]
   },
   {
     "query_text": "сантехнические товары и комплектующие для водоснабжения",
-    "expected_supplier_names": ["Integration Supplier sanitary_goods"]
+    "expected_supplier_ids": [2]
   },
   {
     "query_text": "смесители, краны и водоразборная арматура для ванной и кухни",
-    "expected_supplier_names": ["Integration Supplier sanitary_goods"]
+    "expected_supplier_ids": [2]
   },
   {
     "query_text": "трубы, фитинги, переходники и соединители для трубопроводов",
-    "expected_supplier_names": ["Integration Supplier sanitary_goods"]
+    "expected_supplier_ids": [2]
   },
   {
     "query_text": "санитарная арматура, клапаны и монтажные комплектующие для сантехники",
-    "expected_supplier_names": ["Integration Supplier sanitary_goods"]
+    "expected_supplier_ids": [2]
   }
 ]

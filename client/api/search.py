@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from client.services.query import handle_query
 
@@ -10,6 +10,7 @@ router = APIRouter(prefix="/search", tags=["search"])
 
 class SearchRequest(BaseModel):
     query: str
+    limit: int | None = Field(default=None, ge=1, le=100)
     user_id: int | str | None = None
 
 
@@ -23,5 +24,6 @@ def search(payload: SearchRequest) -> dict:
         "results": handle_query(
             query_text=payload.query,
             user_id=payload.user_id,
+            limit=payload.limit,
         ),
     }

@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     supplier_top_k: int = 10
     supplier_min_similarity: float = 0.20
 
+    model_local_path: str = Field(default='')
+    model_normalize_embeddings: bool = True
+    model_max_text_length: int = 1024
+    
     upload_dir: str = '/tmp/uploads'
     allowed_extensions: tuple[str, ...] = ('.csv', '.xlsx', '.xls', '.txt')
 

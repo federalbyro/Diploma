@@ -1,61 +1,124 @@
+"""
+Нагрузочный тест POST /search.
+Запуск: python test/benchmarks/bench_client.py --url http://localhost:8001 --rps 20 --duration 30
+"""
 from __future__ import annotations
 
-from statistics import mean
+import argparse
+import asyncio
+import statistics
+import time
+from typing import Any
 
 import httpx
 
-from test.benchmarks.data import load_client_queries
-from test.benchmarks.timer import print_dict, print_stage, timed
+QUERIES = [
+    "детские игрушки",
+    "авиационные комплектующие",
+    "сантехнические товары",
+    "промышленное оборудование",
+    "текстиль и ткани",
+]
 
 
-def run_client_api_benchmark(
-    base_url: str = "http://127.0.0.1:8001",
-    queries_file: str = "client_queries_small.json",
-) -> dict:
-    queries = load_client_queries(queries_file)
+async def single_request(
+    client: httpx.AsyncClient,
+    base_url: str,
+    query: str,
+) -> tuple[float, int]:
+    """Возвращает (latency_ms, status_code)."""
+    t0 = time.perf_counter()
+    try:
+        resp = await client.post(
+            f"{base_url}/search",
+            json={"query": query, "limit": 10},
+            timeout=10.0,
+        )
+        return (time.perf_counter() - t0) * 1000, resp.status_code
+    except Exception:
+        return (time.perf_counter() - t0) * 1000, 0
 
-    per_query: list[dict] = []
 
-    with httpx.Client(timeout=60.0) as client:
-        with timed("client_api_all", rows=len(queries)) as total_timer:
-            for item in queries:
-                payload = {
-                    "query": item["query_text"],
-                    "user_id": item.get("user_id"),
-                }
+async def run_bench(
+    base_url: str,
+    target_rps: int,
+    duration_sec: int,
+    concurrency: int,
+) -> None:
+    latencies: list[float] = []
+    errors = 0
+    total  = 0
 
-                with timed("client_api_query") as t:
-                    response = client.post(f"{base_url}/search", json=payload)
-                    response.raise_for_status()
-                    data = response.json()
+    interval = 1.0 / target_rps  # секунд между запросами
+    deadline = time.perf_counter() + duration_sec
 
-                results = data.get("results", [])
-                per_query.append(
-                    {
-                        "query_text": item["query_text"],
-                        "seconds": t.seconds,
-                        "status_code": response.status_code,
-                        "result_count": len(results),
-                    }
-                )
-                print_stage("client_api_query", t.seconds)
+    sem = asyncio.Semaphore(concurrency)
 
-    avg_sec = mean(x["seconds"] for x in per_query) if per_query else 0.0
+    async def bounded(query: str) -> None:
+        nonlocal errors, total
+        async with sem:
+            lat, status = await single_request(client, base_url, query)
+            latencies.append(lat)
+            total += 1
+            if status != 200:
+                errors += 1
 
-    result = {
-        "queries_file": queries_file,
-        "queries_count": len(queries),
-        "total_sec": total_timer.seconds,
-        "avg_query_sec": round(avg_sec, 4),
-        "queries_per_sec": round(len(queries) / total_timer.seconds, 2) if total_timer.seconds > 0 else 0.0,
-        "per_query": per_query,
-    }
+    print(f"[bench] target={target_rps} rps | duration={duration_sec}s "
+          f"| concurrency={concurrency} | url={base_url}")
+    print("[bench] warming up...")
 
-    print_dict("\n[bench] Client API benchmark summary", {
-        k: v for k, v in result.items() if k != "per_query"
-    })
-    return result
+    async with httpx.AsyncClient() as client:
+        # Warm-up (1 запрос)
+        await single_request(client, base_url, QUERIES[0])
+        print("[bench] starting...")
+
+        tasks: list[asyncio.Task] = []
+        q_idx = 0
+        t_start = time.perf_counter()
+
+        while time.perf_counter() < deadline:
+            query = QUERIES[q_idx % len(QUERIES)]
+            tasks.append(asyncio.create_task(bounded(query)))
+            q_idx += 1
+            await asyncio.sleep(interval)
+
+        await asyncio.gather(*tasks)
+
+    elapsed = time.perf_counter() - t_start
+
+    if not latencies:
+        print("[bench] no results")
+        return
+
+    latencies.sort()
+
+    def pct(p: float) -> float:
+        idx = int(len(latencies) * p / 100)
+        return round(latencies[min(idx, len(latencies) - 1)], 1)
+
+    print(f"\n{'─' * 50}")
+    print(f"  Requests      : {total}")
+    print(f"  Errors        : {errors}  ({errors/total*100:.1f}%)")
+    print(f"  Elapsed       : {elapsed:.1f}s")
+    print(f"  Actual RPS    : {total / elapsed:.1f}")
+    print(f"  Latency  p50  : {pct(50)} ms")
+    print(f"  Latency  p95  : {pct(95)} ms")
+    print(f"  Latency  p99  : {pct(99)} ms")
+    print(f"  Latency  max  : {round(max(latencies), 1)} ms")
+    print(f"  Latency  mean : {round(statistics.mean(latencies), 1)} ms")
+    print(f"{'─' * 50}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Load test POST /search")
+    parser.add_argument("--url",         default="http://localhost:8001")
+    parser.add_argument("--rps",         type=int, default=10)
+    parser.add_argument("--duration",    type=int, default=30)
+    parser.add_argument("--concurrency", type=int, default=20)
+    args = parser.parse_args()
+
+    asyncio.run(run_bench(args.url, args.rps, args.duration, args.concurrency))
 
 
 if __name__ == "__main__":
-    run_client_api_benchmark()
+    main()

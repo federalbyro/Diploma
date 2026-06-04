@@ -2,28 +2,16 @@ x-app-build: &app-build
   context: .
   dockerfile: Dockerfile.app
 
-x-app-env: &app-env
-  POSTGRES_DSN: postgresql+psycopg2://postgres:postgres@postgres:5432/diploma
-  QDRANT_URL: http://qdrant:6333
-  REDIS_URL: redis://redis:6379/0
-  CELERY_BROKER_URL: redis://redis:6379/0
-  CELERY_RESULT_BACKEND: redis://redis:6379/1
-  MODEL_CACHE_DIR: /models
-  MODEL_DEVICE: cpu
-
 services:
   postgres:
     image: postgres:16
-    environment:
-      POSTGRES_DB: diploma
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+    env_file: .env
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d diploma"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -46,25 +34,39 @@ services:
   migrations:
     build: *app-build
     command: ["alembic", "upgrade", "head"]
+    env_file: .env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     restart: "no"
-    environment:
-      <<: *app-env
     volumes:
       - model_cache:/models
       - uploads:/tmp/uploads
 
+  model_downloader:
+    build: *app-build
+    command: >
+      python -c "
+      from shared.core.encoder import get_model;
+      get_model();
+      print('[model_downloader] ready.')
+      "
+    env_file: .env
+    volumes:
+      - model_cache:/models
+    restart: "no"
+
   catalog_service:
     build: *app-build
     command: ["uvicorn", "catalog.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file: .env
     depends_on:
-      - postgres
-      - redis
-      - qdrant
-      - migrations
-    environment:
-      <<: *app-env
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      model_downloader:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
     volumes:
@@ -73,14 +75,20 @@ services:
 
   catalog_worker:
     build: *app-build
-    command: ["celery", "-A", "catalog.tasks.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
+    command: ["celery", "-A", "catalog.tasks.celery_app:celery_app", "worker",
+              "--loglevel=INFO", "--concurrency=1"]
+    env_file: .env
     depends_on:
-      - postgres
-      - redis
-      - qdrant
-      - migrations
-    environment:
-      <<: *app-env
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
+      model_downloader:
+        condition: service_completed_successfully
     volumes:
       - model_cache:/models
       - uploads:/tmp/uploads
@@ -88,12 +96,16 @@ services:
   client_service:
     build: *app-build
     command: ["uvicorn", "client.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    env_file: .env
     depends_on:
-      - postgres
-      - qdrant
-      - migrations
-    environment:
-      <<: *app-env
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
+      model_downloader:
+        condition: service_completed_successfully
     ports:
       - "8001:8001"
     volumes:

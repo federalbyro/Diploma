@@ -1,0 +1,55 @@
+site_name: Diploma — Multilingual Supplier Catalog
+site_url: https://federalbyro.github.io/Diploma
+repo_url: https://github.com/federalbyro/Diploma
+repo_name: federalbyro/Diploma
+
+theme:
+  name: material
+  language: ru
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Тёмная тема
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Светлая тема
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+
+nav:
+  - Главная: index.md
+  - Быстрый старт: quickstart.md
+  - Конфигурация: configuration.md
+  - Сервисы:
+    - Catalog Service: services/catalog.md
+    - Client Service: services/client.md
+    - Shared: services/shared.md
+  - API:
+    - Catalog API: api/catalog.md
+    - Client API: api/client.md
+  - Модель: model.md
+  - Разработка: development.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
