@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://federalbyro.github.io/Diploma/</loc>
+         <lastmod>2026-06-04</lastmod>
+    </url>
+    <url>
+         <loc>https://federalbyro.github.io/Diploma/configuration/</loc>
+         <lastmod>2026-06-04</lastmod>
+    </url>
+    <url>
+         <loc>https://federalbyro.github.io/Diploma/quickstart/</loc>
+         <lastmod>2026-06-04</lastmod>
+    </url>
+    <url>
+         <loc>https://federalbyro.github.io/Diploma/api/catalog/</loc>
+         <lastmod>2026-06-04</lastmod>
+    </url>
+    <url>
+         <loc>https://federalbyro.github.io/Diploma/api/client/</loc>
+         <lastmod>2026-06-04</lastmod>
+    </url>
+</urlset>
