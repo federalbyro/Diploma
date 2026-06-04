@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
 import os
 from typing import Any, Sequence
 
 from qdrant_client.http import models as qdrant_models
+from qdrant_client.models import PointStruct
 
+from shared.core.config import get_settings
 from shared.core.encoder import Encoder
 from shared.db.models import Category, Product
 from shared.db.qdrant import (
@@ -237,6 +240,32 @@ def upsert_category_embeddings(
         payloads=all_payloads,
     )
 
+def upsert_search_embedding_vector(
+    search_id:  int,
+    query_text: str,
+    vector:     list[float],
+    user_id:    int | str | None = None,
+) -> None:
+    """Сохраняет поисковый эмбеддинг в Qdrant. Вектор уже вычислен."""
+    settings = get_settings()
+    qdrant   = QdrantDB(url=os.getenv("QDRANT_URL", "http://qdrant:6333"))
+
+    ensure_qdrant_collections()
+
+    qdrant.client.upsert(
+        collection_name=settings.qdrant_search_collection,
+        points=[
+            PointStruct(
+                id=search_id,
+                vector=vector,
+                payload={
+                    "query_text": query_text,
+                    "user_id":    str(user_id) if user_id is not None else None,
+                    "created_at": datetime.utcnow().isoformat(),
+                },
+            )
+        ],
+    )
 
 def upsert_search_embedding(
     search_id: int | str,

@@ -53,6 +53,37 @@ def search_suppliers_by_query(
 
     return result
 
+def search_suppliers_by_vector(
+    qdrant:               QdrantDB,
+    vector:               list[float],
+    limit:                int = 10,
+    product_search_limit: int = 50,
+) -> list[int]:
+    """Поиск поставщиков по готовому вектору (без повторного encode)."""
+    settings = get_settings()
+
+    hits = qdrant.client.search(
+        collection_name=settings.qdrant_products_collection,
+        query_vector=vector,
+        limit=product_search_limit,
+        with_payload=True,
+    )
+
+    seen:   set[int]  = set()
+    result: list[int] = []
+
+    for hit in hits:
+        supplier_id = (hit.payload or {}).get("supplier_id")
+        if supplier_id is None:
+            continue
+        sid = int(supplier_id)
+        if sid not in seen:
+            seen.add(sid)
+            result.append(sid)
+            if len(result) >= limit:
+                break
+
+    return result
 
 def process_supplier_products(
     session: Session,
