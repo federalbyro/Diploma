@@ -193,7 +193,6 @@ def build_catalog_metrics() -> list[dict[str, Any]]:
     return result_rows
 
 
-# ── Table 2: косинусные сходства по категориям ────────────────────────────────
 def build_cosine_catalog_metrics() -> list[dict[str, Any]]:
     if not CATALOG_GT_PATH.exists():
         return []
@@ -223,77 +222,119 @@ def build_cosine_catalog_metrics() -> list[dict[str, Any]]:
     result_rows: list[dict] = []
     for src_file, buckets in sorted(by_file.items()):
         avg_rel = safe_mean(buckets["rel"])
+        max_rel = round(max(buckets["rel"]), 4) if buckets["rel"] else None  
         avg_non = safe_mean(buckets["non"])
         result_rows.append({
-            "source_file":     src_file,
-            "avg_relevant":    avg_rel,
+            "source_file":      src_file,
+            "avg_relevant":     avg_rel,
+            "max_relevant":     round(max(buckets["rel"]), 4) if buckets["rel"] else None,
             "avg_non_relevant": avg_non,
-            "Δcos":            round(avg_rel - avg_non, 4) if avg_rel and avg_non else None,
+            "Δcos":             round(avg_rel - avg_non, 4) if avg_rel and avg_non else None,
         })
 
     ovr_rel = safe_mean(all_rel)
+    ovr_max = round(max(all_rel), 4) if all_rel else None
     ovr_non = safe_mean(all_non)
     result_rows.insert(0, {
-        "source_file":     "OVERALL",
-        "avg_relevant":    ovr_rel,
+        "source_file":      "OVERALL",
+        "avg_relevant":     ovr_rel,
+        "max_relevant":     round(max(all_rel), 4) if all_rel else None,
         "avg_non_relevant": ovr_non,
-        "Δcos":            round(ovr_rel - ovr_non, 4) if ovr_rel and ovr_non else None,
+        "Δcos":             round(ovr_rel - ovr_non, 4) if ovr_rel and ovr_non else None,
     })
     return result_rows
 
 
-# ── Table 3: косинусные сходства по клиентским запросам ──────────────────────
 def get_client_runs() -> list[dict[str, Any]]:
     global _CLIENT_SEARCH_CACHE
     if _CLIENT_SEARCH_CACHE is not None:
         return _CLIENT_SEARCH_CACHE
 
-    from client.services.query import handle_query
-
-    queries = load_json(CLIENT_QUERIES_PATH) if CLIENT_QUERIES_PATH.exists() else [
-        {"user_id": 1, "query_text": "детские игрушки"},
-        {"user_id": 1, "query_text": "авиационные детали"},
-        {"user_id": 1, "query_text": "сантехнические товары"},
-    ]
+    gt_items = load_json(QUERY_GT_PATH) if QUERY_GT_PATH.exists() else []
 
     runs = []
-    for item in queries:
-        supplier_ids: list[int] = handle_query(
-            query_text=item["query_text"],
-            user_id=item.get("user_id"),
-        )
-        runs.append({"query_text": item["query_text"], "supplier_ids": supplier_ids})
+    for item in gt_items:
+        query_text = item["query_text"]
+        scored     = _search_with_scores(query_text)   # [(supplier_id, score)]
+        runs.append({
+            "query_text":   query_text,
+            "user_id":      item.get("user_id"),
+            "scored":       scored,
+            "supplier_ids": [sid for sid, _ in scored],
+        })
 
     _CLIENT_SEARCH_CACHE = runs
     return runs
 
 
+def resolve_supplier_ids_by_name() -> dict[str, int]:
+    """Возвращает {supplier_name: supplier_id} из тестовой БД."""
+    rows = fetch_all("SELECT supplier_id, name FROM suppliers")
+    return {str(r["name"]): int(r["supplier_id"]) for r in rows}
+
+
+def _search_with_scores(query_text: str) -> list[tuple[int, float]]:
+    """(supplier_id, best_score) — напрямую из Qdrant, для метрик."""
+    from shared.core.encoder import Encoder
+    from shared.db.qdrant import QdrantDB
+    from shared.services.preprocessing import normalize_text
+
+    encoder = Encoder()
+    vector  = encoder.encode_single(normalize_text(query_text))
+    qdrant  = QdrantDB(url=TEST_QDRANT_URL)
+
+    hits = qdrant.client.search(
+        collection_name=TEST_PRODUCT_COLLECTION,
+        query_vector=vector,
+        limit=50,
+        with_payload=True,
+    )
+
+    best: dict[int, float] = {}
+    for hit in hits:
+        sid = int((hit.payload or {}).get("supplier_id", 0))
+        if sid and hit.score > best.get(sid, -1.0):
+            best[sid] = round(float(hit.score), 4)
+
+    return sorted(best.items(), key=lambda x: -x[1])
+
 def build_cosine_query_metrics() -> list[dict[str, Any]]:
     if not QUERY_GT_PATH.exists():
         return []
 
-    # ground truth: [{query_text, expected_supplier_ids: [int, ...]}]
-    gt_items = load_json(QUERY_GT_PATH)
+    gt_items   = load_json(QUERY_GT_PATH)
+    name_to_id = resolve_supplier_ids_by_name()
+
     gt_by_query: dict[str, set[int]] = {
-        item["query_text"]: set(item["expected_supplier_ids"])
+        item["query_text"]: {name_to_id[n] for n in item.get("expected_supplier_names", []) if n in name_to_id}
         for item in gt_items
     }
 
     rows: list[dict] = []
     for run in get_client_runs():
-        query   = run["query_text"]
-        results = run["supplier_ids"]   # list[int]
+        query    = run["query_text"]
+        scored   = run["scored"]          
         expected = gt_by_query.get(query, set())
 
-        rank = next(
-            (i + 1 for i, sid in enumerate(results) if sid in expected),
-            None,
-        )
+        rank            = None
+        max_relevant    = None
+        max_non_relevant = None
+
+        for i, (sid, score) in enumerate(scored):
+            if sid in expected:
+                if rank is None:
+                    rank = i + 1
+                max_relevant = max(max_relevant or -1, score)
+            else:
+                max_non_relevant = max(max_non_relevant or -1, score)
+
         rows.append({
-            "query":           query[:55],
-            "expected_rank":   rank if rank is not None else "-",
-            "reciprocal_rank": round(1.0 / rank, 4) if rank else 0.0,
-            "found_in_top5":   any(sid in expected for sid in results[:5]),
+            "query":            query[:50],
+            "expected_rank":    rank if rank is not None else "-",
+            "reciprocal_rank":  round(1.0 / rank, 4) if rank else 0.0,
+            "max_relevant":     max_relevant if max_relevant is not None else "-",
+            "max_non_relevant": max_non_relevant if max_non_relevant is not None else "-",
+            "found_in_top5":    any(sid in expected for sid, _ in scored[:5]),
         })
 
     return rows

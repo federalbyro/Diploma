@@ -32,7 +32,30 @@ class QdrantDB:
             collection_name=collection_name,
             vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )
-
+    
+    def scroll_all(
+        self,
+        collection_name: str,
+        with_vectors: bool = False,
+        with_payload: bool = True,
+    ) -> list:
+        """Получить все точки из коллекции постранично."""
+        all_points = []
+        offset = None
+        while True:
+            points, next_offset = self.client.scroll(
+                collection_name=collection_name,
+                limit=256,
+                offset=offset,
+                with_vectors=with_vectors,
+                with_payload=with_payload,
+            )
+            all_points.extend(points)
+            if next_offset is None:
+                break
+            offset = next_offset
+        return all_points
+    
     def upsert_points(
         self,
         collection_name: str,

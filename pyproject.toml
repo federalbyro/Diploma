@@ -45,6 +45,7 @@ model = [
 
 test = [
     "pytest==8.3.5",
+    "httpx==0.28.1",
 ]
 
 # ── uv: CPU-only torch ────────────────────────────

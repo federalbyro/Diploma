@@ -45,12 +45,10 @@ services:
 
   model_downloader:
     build: *app-build
-    command: >
-      python -c "
-      from shared.core.encoder import get_model;
-      get_model();
-      print('[model_downloader] ready.')
-      "
+    command:
+      - python
+      - -c
+      - "from shared.core.encoder import get_model; get_model(); print('[model_downloader] ready.')"
     env_file: .env
     volumes:
       - model_cache:/models
